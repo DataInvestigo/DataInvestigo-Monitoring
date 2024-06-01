@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resource Utilization</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <h1>Resource Utilization</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>CPU Usage</th>
+          <th>Memory Usage</th>
+          <th>Disk I/O</th>
+          <th>Network Bandwidth</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for resource in resources %}
+        <tr>
+          <td>{{ resource.id }}</td>
+          <td>{{ resource.cpu_usage }}%</td>
+          <td>{{ resource.memory_usage }}%</td>
+          <td>{{ resource.disk_io }}</td>
+          <td>{{ resource.network_bandwidth }}</td>
+          <td>{{ resource.timestamp }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button onclick="window.location.href='/'">Back to Home</button>
+    <script src="/static/js/scripts.js"></script>
+  </body>
+</html>

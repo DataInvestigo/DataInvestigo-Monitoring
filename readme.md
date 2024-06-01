@@ -10,7 +10,7 @@ This project is an DataInvestigo Monitoring application using PostgreSQL as the 
 ## Setup Instructions
 
 1. **Clone the repository**
-   git clone https://github.com/yourusername/infra-monitoring.git
+   git clone https://github.com/DataInvestigo/DataInvestigo-Monitoring.git
    cd DataInvestigo-Monitoring
 
 2. **Create a virtual environment and activate it**

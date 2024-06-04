@@ -1,19 +1,68 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from app import crud, models, schemas
+from app import crud, schemas
 from app.database import get_db
+from app.monitoring.resource_utilization import collect_resource_utilization
+import threading
+import time
 import psutil
-from datetime import datetime
 
 router = APIRouter()
 
-templates = Jinja2Templates(directory="app/templates")
+
+# Global flag to control monitoring
+is_monitoring = False
+monitoring_thread = None
+
+def monitoring_task(db_session_maker):
+    global is_monitoring
+    while is_monitoring:
+        with db_session_maker() as db:
+            try:
+                collect_resource_utilization(db)
+            except Exception as e:
+                # Log the error or handle it as needed
+                print(f"Error during resource collection: {e}")
+            finally:
+                db.close()
+        time.sleep(3)
+
+def start_monitoring_task(db_session_maker):
+    global is_monitoring, monitoring_thread
+    if not is_monitoring:
+        is_monitoring = True
+        monitoring_thread = threading.Thread(target=monitoring_task, args=(db_session_maker,))
+        monitoring_thread.start()
+        return {"status": "Monitoring started"}
+    else:
+        raise HTTPException(status_code=400, detail="Monitoring is already running")
+
+def stop_monitoring_task():
+    global is_monitoring, monitoring_thread
+    if is_monitoring:
+        is_monitoring = False
+        monitoring_thread.join()
+        monitoring_thread = None
+        return {"status": "Monitoring stopped"}
+    else:
+        raise HTTPException(status_code=400, detail="Monitoring is not running")
+
+@router.post("/start-monitoring")
+def start_monitoring(db: Session = Depends(get_db)):
+    return start_monitoring_task(get_db)
+
+@router.post("/stop-monitoring")
+def stop_monitoring():
+    return stop_monitoring_task()
 
 @router.post("/", response_model=schemas.ResourceUtilization)
-def create_resource_utilization(resource: schemas.ResourceUtilizationCreate, db: Session = Depends(get_db)):
-    return crud.create_resource_utilization(db=db, resource=resource)
+def create_resource_utilization(db: Session = Depends(get_db)):
+    try:
+        resource = collect_resource_utilization(db)
+        return resource
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=list[schemas.ResourceUtilization])
 def read_resource_utilization(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
@@ -36,13 +85,5 @@ def get_current_resource_utilization():
         )
 
         return resource_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/view", response_class=HTMLResponse)
-def view_resource_utilization(request: Request, db: Session = Depends(get_db)):
-    try:
-        resources = crud.get_resource_utilization(db, skip=0, limit=10)
-        return templates.TemplateResponse("resource_utilization.html", {"request": request, "resources": resources})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
